@@ -8,8 +8,10 @@ using Telerik.Sitefinity.Modules.Pages.Configuration;
 using Telerik.Sitefinity.Configuration;
 using Telerik.Sitefinity;
 using Telerik.Sitefinity.Web.Configuration;
+using Telerik.Sitefinity.Multisite;
+using Telerik.Sitefinity.Services;
 
-namespace PalettesModule.Web.Controls
+namespace PaletteModule.Web.Controls
 {
     public static class Utility
     {
@@ -30,17 +32,11 @@ namespace PalettesModule.Web.Controls
 
         public static Guid GetCurrentPageId()
         {
+		    SetContext();
             Guid pageId;
-            PageSiteNode psn = SiteMapBase.GetActualCurrentNode();
-            if (psn == null)
-            {
-                PagesConfig pagesConfig = Config.Get<PagesConfig>();
-                pageId = pagesConfig.HomePageId;
-            }
-            else
-            {
-                pageId = psn.Id;
-            }
+			var siteMapProvider = SiteMapBase.GetCurrentProvider();
+			var pageNodeForPalette = siteMapProvider.CurrentNode ?? siteMapProvider.RootNode;
+			pageId = new Guid(pageNodeForPalette.Key);
             return pageId;
         }
 
@@ -52,7 +48,7 @@ namespace PalettesModule.Web.Controls
 
         public static string GetPageTheme(PageNode pn)
         {
-            return (pn.Page.Template != null) ? pn.Page.Template.Theme : "";
+            return (pn != null && pn.Page != null && pn.Page.Template != null) ? pn.Page.Template.Theme : "";
         }
 
         public static string GetThemePath(string theme)
@@ -62,5 +58,16 @@ namespace PalettesModule.Web.Controls
 
             return section.FrontendThemes[theme].Path;
         }
+
+	   private static void SetContext()
+	   {
+          var siteContext = SystemManager.CurrentContext;
+          if (siteContext.IsMultisiteMode)
+          {
+              string siteName = new MultisiteContext().CurrentSiteContext.Site.Name;
+              ISite site = new MultisiteContext().GetSiteByName(siteName);
+              (siteContext as MultisiteContext).ChangeCurrentSite(site);
+          }
+	   }
     }
 }

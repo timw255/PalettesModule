@@ -5,41 +5,24 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Web;
-using PalettesModule.Data;
-using PalettesModule.Model;
+using PaletteModule.Models;
+using Telerik.Sitefinity.DynamicModules;
+using Telerik.Sitefinity.Utilities.TypeConverters;
+using Telerik.Sitefinity.GenericContent.Model;
+using Telerik.Sitefinity.Model;
+using Telerik.Sitefinity.Multisite;
+using Telerik.Sitefinity.Services;
 
-namespace PalettesModule
+namespace PaletteModule
 {
     public class ThemeEngine
     {
-        //public static void UpdateGeneratedCSS(Guid paletteId)
-        //{
-        //    PalettesManager manager = PalettesManager.GetManager();
 
-        //    PaletteItem palette = manager.GetPalette(paletteId);
-
-        //    string urlName = palette.UrlName;
-
-        //    string templateDir = HttpContext.Current.Server.MapPath(@"~/App_Data/Sitefinity/WebsiteTemplates/");
-        //    string[] files = Directory.GetFiles(templateDir, string.Format("*_{0}.css", urlName), SearchOption.AllDirectories);
-        //    if (files.Length > 0)
-        //    {
-        //        foreach (string file in files)
-        //        {
-        //            string parsedFileName = Path.GetFileName(file);
-        //            string sourceFileName = parsedFileName.Replace(string.Format("_{0}", urlName), "");
-        //            string path = Path.GetDirectoryName(file);
-
-        //            ThemeEngine.GenerateThemedCSS(Path.Combine(string.Format("{0}{1}", path, @"Themeable")), sourceFileName, paletteId);   
-        //        }
-        //    }
-        //}
-
-        public static void DeleteGeneratedCSS(string generatedPath, string sourceNameNoExtension, string urlName)
+        public static void DeleteGeneratedCSS(string generatedPath, string sourceNameNoExtension, string urlName, string siteName)
         {
             if (Directory.Exists(generatedPath))
             {
-                string[] filesByPalette = Directory.GetFiles(generatedPath, string.Format("{0}????_{1}????.css", sourceNameNoExtension, urlName), SearchOption.TopDirectoryOnly);
+                string[] filesByPalette = Directory.GetFiles(generatedPath, string.Format("{0}????_{1}????-{2}.css", sourceNameNoExtension, urlName, siteName), SearchOption.TopDirectoryOnly);
 
                 if (filesByPalette.Length > 0)
                 {
@@ -51,14 +34,10 @@ namespace PalettesModule
             }
         }
 
-        //public static string GenerateThemedCSS(string themePath, string sourceFile, string paletteTitle)
-        public static string GenerateThemedCSS(string themePath, string sourceFile, Guid paletteId)
+        public static string GenerateThemedCSS(string themePath, string sourceFile, PaletteItem palette)
         {
-            PalettesManager manager = PalettesManager.GetManager();
-            PaletteItem palette = manager.GetPalette(paletteId);
-            //PaletteItem palette = manager.GetPalettes().Where(p => p.Title == paletteTitle).FirstOrDefault();
-
             Dictionary<string, string> theme = new Dictionary<string, string>();
+            string siteName = SystemManager.CurrentContext.CurrentSite.Name;
 
             theme = theme.Union(GenerateSwatch("Dark1", palette.Dark1)).ToDictionary(i => i.Key, i => i.Value);
             theme = theme.Union(GenerateSwatch("Light1", palette.Light1)).ToDictionary(i => i.Key, i => i.Value);
@@ -83,31 +62,10 @@ namespace PalettesModule
                 return Regex.Replace(match.Groups[4].Value, @"#(?:(?:[a-fA-F\d]{3}){1,2})", theme[match.Groups[3].Value]);
             });
 
-            //f = Regex.Replace(f, @"(/\*\s+?\[(ReplaceFont)\(themeFont:""([a-zA-Z0-9-]+?)""\)\]\s=?\*/\s+?((\S.+?):\s*?(.+?);))", delegate(Match match)
-            //{
-            //    string r = "";
-
-            //    switch (match.Groups[5].Value)
-            //    {
-            //        case "font":
-            //            r = Regex.Replace(match.Groups[4].Value, @"font:\s*?((?:(?:inherit|normal|italic|oblique))?\s*?(?:(?:inherit|normal|small-caps))?\s*?(?:(?:inherit|normal|bold(?:er)?|lighter|[1-9]00))?(?:\s*?(?:\d+(?:%|px|em|pt)?|(?:x(?:x)?-)?(?:small|large)r?)|medium|inherit)(?:\/(?:\d+(?:%|px|em|pt)?|normal|inherit))?\s*?(?:(inherit|default|.+?));)", delegate(Match m)
-            //            {
-            //                return string.Format("font:{0}", Regex.Replace(m.Groups[1].Value, m.Groups[2].Value, string.Format(" {0}", fonts[match.Groups[3].Value])));
-            //            });
-            //            break;
-            //        case "font-family":
-            //            r = string.Format("{0}:{1};", match.Groups[5].Value, fonts[match.Groups[3].Value]);
-            //            break;
-            //        default:
-            //            break;
-            //    }
-
-            //    return r;
-            //});
-
+           
             string sourceModSuffix = String.Format("{0:ssff}", sourceFileInfo.LastWriteTime);
             string modSuffix = String.Format("{0:ssff}", palette.LastModified);
-            string newFileName = string.Format("{0}{1}_{2}{3}.css", sourceFile.Substring(0, sourceFile.Length - 4), sourceModSuffix, palette.UrlName, modSuffix);
+            string newFileName = string.Format("{0}{1}_{2}{3}-{4}.css", sourceFile.Substring(0, sourceFile.Length - 4), sourceModSuffix, palette.Title, modSuffix, siteName);
 
             string newFilePath = Path.Combine(themePath, @"CSS\Generated\", newFileName);
 
