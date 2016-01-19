@@ -22,7 +22,14 @@ namespace PaletteModule
         {
             if (Directory.Exists(generatedPath))
             {
-                string[] filesByPalette = Directory.GetFiles(generatedPath, string.Format("{0}????_{1}????-{2}.css", sourceNameNoExtension, urlName, siteName), SearchOption.TopDirectoryOnly);
+				string regex = @"[^\w\-\!\$\'\(\)\=\@\d_]+";
+				siteName = Regex.Replace(siteName, regex, "-").ToLower();
+				sourceNameNoExtension = Regex.Replace(sourceNameNoExtension,regex,"-").ToLower();
+				urlName = Regex.Replace(urlName, regex, "-");
+
+				string searchstring = string.Format("{0}????_{1}????-{2}", sourceNameNoExtension, urlName, siteName) + ".css";
+
+				string[] filesByPalette = Directory.GetFiles(generatedPath, searchstring, SearchOption.TopDirectoryOnly);
 
                 if (filesByPalette.Length > 0)
                 {
@@ -65,9 +72,10 @@ namespace PaletteModule
            
             string sourceModSuffix = String.Format("{0:ssff}", sourceFileInfo.LastWriteTime);
             string modSuffix = String.Format("{0:ssff}", palette.LastModified);
-            string newFileName = string.Format("{0}{1}_{2}{3}-{4}.css", sourceFile.Substring(0, sourceFile.Length - 4), sourceModSuffix, palette.Title, modSuffix, siteName);
+			 string newFileName = Regex.Replace(string.Format("{0}{1}_{2}{3}-{4}", sourceFile.Substring(0, sourceFile.Length - 4), sourceModSuffix, palette.Title, modSuffix, siteName).ToLower(), @"[^\w\-\!\$\'\(\)\=\@\d_]+", "-");
+           
 
-            string newFilePath = Path.Combine(themePath, @"CSS\Generated\", newFileName);
+            string newFilePath = Path.Combine(themePath, @"CSS\Generated\", newFileName + ".css");
 
             (new FileInfo(newFilePath)).Directory.Create();
 

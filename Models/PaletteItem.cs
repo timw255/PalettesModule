@@ -1,13 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using Telerik.OpenAccess;
+using Telerik.Sitefinity;
+using Telerik.Sitefinity.GenericContent.Model;
 using Telerik.Sitefinity.Model;
+using Telerik.Sitefinity.Versioning.Serialization.Attributes;
 
 namespace PaletteModule.Models
 {
-    public class PaletteItem : IDataItem
+	[DataContract(Namespace = "http://sitefinity.com/samples/palettemoduleclass", Name = "Palette")]
+	[ManagerType("PaletteModule.PaletteModuleManager, PaletteModule")]
+    public class PaletteItem : Content, ILocatable
     {
         #region Construction
         /// <summary>
@@ -32,83 +38,21 @@ namespace PaletteModule.Models
         #endregion
 
         #region Properties
-        /// <summary>
-        /// Gets or sets the name of the application to which this data item belongs to.
-        /// </summary>
-        /// <value>The name of the application.</value>
-        public string ApplicationName
-        {
-            get
-            {
-                return this.applicationName;
-            }
-            set
-            {
-                this.applicationName = value;
-            }
-        }
-
-        /// <summary>
-        /// The data provider this item was instantiated(retrieved or created) with.
-        /// </summary>
-        public object Provider
-        {
-            get
-            {
-                return this.provider;
-            }
-            set
-            {
-                this.provider = value;
-            }
-        }
-
-        /// <summary>
-        /// The transaction scope this item belongs to or null. This property is set by the specific forums provider implementation
-        /// </summary>
-        public object Transaction
-        {
-            get
-            {
-                return this.transaction;
-            }
-            set
-            {
-                this.transaction = value;
-            }
-        }
-
-        /// <summary>
-        /// Gets or sets the date created.
-        /// </summary>
-        /// <value>The date created.</value>
-        public DateTime DateCreated { get; set; }
-
-        /// <summary>
-        /// Gets or sets the time this item was last modified.
-        /// </summary>
-        /// <value>The last modified time.</value>
-        public DateTime LastModified { get; set; }
-
-        /// <summary>
-        /// Gets the unique identity of the PaletteItem.
-        /// </summary>
-        /// <value>The id.</value>
-        public Guid Id { get; set; }
-
-        /// <summary>
-        /// Gets or sets the Title.
-        /// </summary>
-        public string Title { get; set; }
+		//[DataMember]
+		//public Lstring Title { get; set; }
 
         /// <summary>
         /// Gets or sets the Dark1.
         /// </summary>
+		/// 
+		[DataMember]
         public string Dark1 { get; set; }
 
         /// <summary>
         /// Gets or sets the Dark2.
         /// </summary>
+		/// 
+		[DataMember]
         public string Dark2 { get; set; }
 
         /// <summary>
@@ -124,51 +68,126 @@ namespace PaletteModule.Models
         /// <summary>
         /// Gets or sets the Accent1.
         /// </summary>
-        public string Accent1 { get; set; }
+		[DataMember]
+		public string Accent1 { get; set; }
 
         /// <summary>
         /// Gets or sets the Accent2.
         /// </summary>
-        public string Accent2 { get; set; }
+		[DataMember]
+		public string Accent2 { get; set; }
 
         /// <summary>
         /// Gets or sets the Accent3.
         /// </summary>
-        public string Accent3 { get; set; }
+		[DataMember]
+		public string Accent3 { get; set; }
 
         /// <summary>
         /// Gets or sets the Accent4.
         /// </summary>
-        public string Accent4 { get; set; }
+		[DataMember]
+		public string Accent4 { get; set; }
 
         /// <summary>
         /// Gets or sets the Accent5.
         /// </summary>
-        public string Accent5 { get; set; }
+		[DataMember]
+		public string Accent5 { get; set; }
 
         /// <summary>
         /// Gets or sets the Accent6.
         /// </summary>
-        public string Accent6 { get; set; }
+		[DataMember]
+		public string Accent6 { get; set; }
 
         /// <summary>
         /// Gets or sets the Hyperlink.
         /// </summary>
-        public string Hyperlink { get; set; }
+		[DataMember]
+		public string Hyperlink { get; set; }
 
         /// <summary>
         /// Gets or sets the FollowedHyperlink.
         /// </summary>
-        public string FollowedHyperlink { get; set; }
+		[DataMember]
+		public string FollowedHyperlink { get; set; }
 
-        //public string UrlName { get; set; }
+		public override bool SupportsContentLifecycle
+		{
+			get
+			{
+				return false;
+			}
+		}
 
         #endregion
 
-        #region Private fields and constants
-        private string applicationName;
-        private object provider;
-        private object transaction;
-        #endregion
+		#region ILocatable
+
+		private ProviderTrackedList<PaletteItemUrlData> urls;
+
+		/// <summary>
+		/// Gets or sets a value indicating whether to auto generate an unique URL.
+		/// </summary>
+		/// <value>
+		///     <c>true</c> if to auto generate an unique URL otherwise, <c>false</c>.
+		/// </value>
+		[NonSerializableProperty]
+		public bool AutoGenerateUniqueUrl
+		{
+			get { return false; }
+		}
+
+		/// <summary>
+		/// Gets a collection of URL data for this item.
+		/// </summary>
+		/// <value> The collection of URL data.</value>
+		[NonSerializableProperty]
+		public virtual IList<PaletteItemUrlData> Urls
+		{
+			get
+			{
+				if (this.urls == null)
+					this.urls = new ProviderTrackedList<PaletteItemUrlData>(this, "Urls");
+				this.urls.SetCollectionParent(this);
+				return this.urls;
+			}
+		}
+
+		/// <summary>
+		/// Gets a collection of URL data for this item.
+		/// </summary>
+		/// <value>The collection of URL data.</value>
+		[NonSerializableProperty]
+		IEnumerable<UrlData> ILocatable.Urls
+		{
+			get
+			{
+				return this.Urls.Cast<UrlData>();
+			}
+		}
+
+		/// <summary>
+		/// Clears the Urls collection for this item.
+		/// </summary>
+		/// <param name="excludeDefault">if set to <c>true</c> default urls will not be cleared.</param>
+		public void ClearUrls(bool excludeDefault)
+		{
+			if (this.urls != null)
+				this.urls.ClearUrls(excludeDefault);
+		}
+
+		/// <summary>
+		/// Removes all urls that satisfy the condition that is checked in the predicate function.
+		/// </summary>
+		/// <param name="predicate">A function to test each element for a condition.</param>
+		public void RemoveUrls(Func<UrlData, bool> predicate)
+		{
+			if (this.urls != null)
+				this.urls.RemoveUrls(predicate);
+		}
+
+		#endregion
     }
 }

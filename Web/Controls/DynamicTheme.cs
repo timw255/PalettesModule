@@ -1,41 +1,38 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.IO;
 using System.Web.UI;
 using System.Web;
 using System.Web.UI.WebControls;
 using System.Web.UI.HtmlControls;
-using System.ComponentModel;
-using System.Threading;
-using System.Globalization;
-using Telerik.Sitefinity.Utilities.TypeConverters;
-using Telerik.Sitefinity.DynamicModules;
-using Telerik.Sitefinity.GenericContent.Model;
-using Telerik.Sitefinity.Model;
 using Telerik.Sitefinity.Multisite;
 using Telerik.Sitefinity.Services;
 using PaletteModule.Models;
+using Telerik.Sitefinity.Web;
+using Telerik.Sitefinity.Modules.Pages;
+using Telerik.Sitefinity.Model;
+using Telerik.Sitefinity;
+using System.Text.RegularExpressions;
 
 namespace PaletteModule.Web.Controls
 {
 	[ParseChildren(true)]
 	public partial class DynamicTheme : WebControl
 	{
-		private List<ThemeableSourceFile> _sourceFiles;
+		private List<ThemeableSourceFile> sourceFiles;
 
 		[PersistenceMode(PersistenceMode.InnerProperty)]
 		public List<ThemeableSourceFile> SourceFiles
 		{
 			get
 			{
-				if (this._sourceFiles == null)
+				if (this.sourceFiles == null)
 				{
-					this._sourceFiles = new List<ThemeableSourceFile>();
+					this.sourceFiles = new List<ThemeableSourceFile>();
 				}
 
-				return _sourceFiles;
+				return sourceFiles;
 			}
 		}
 
@@ -51,10 +48,10 @@ namespace PaletteModule.Web.Controls
 		protected override void OnInit(EventArgs e)
 		{
 			base.OnInit(e);
-			this.Page.PreRenderComplete += new EventHandler(Page_PreRenderComplete);
+			this.Page.LoadComplete += new EventHandler(Page_LoadComplete);
 		}
 
-		private void Page_PreRenderComplete(object sender, EventArgs e)
+		private void Page_LoadComplete(object sender, EventArgs e)
 		{
 			string currentTheme = Utility.GetCurrentTheme();
 			if (!currentTheme.IsNullOrWhitespace())
@@ -63,22 +60,27 @@ namespace PaletteModule.Web.Controls
 				string themePath = HttpContext.Current.Server.MapPath(relativeThemePath);
 				string siteName = string.Empty;
 
-				string provider = string.Empty;
-                var cContext = SystemManager.CurrentContext;
+				string providerName = string.Empty;
+				var cContext = SystemManager.CurrentContext;
 
-                if (cContext is MultisiteContext)
-                {
-                    MultisiteContext msContext = cContext as MultisiteContext;
-                    siteName = msContext.CurrentSiteContext.Site.Name;
-                    provider = msContext.CurrentSite.GetDefaultProvider(PaletteModuleClass.ModuleName).ProviderName;
-                }
-                else
-                {
-                    siteName = cContext.CurrentSite.Name;
-                    //provider = cContext.CurrentSite.GetDefaultProvider(PaletteModuleClass.ModuleName).ProviderName;
-                }
+				if (cContext is MultisiteContext)
+				{
+					MultisiteContext msContext = cContext as MultisiteContext;
+					siteName = msContext.CurrentSiteContext.Site.Name;
+					var provider = msContext.CurrentSite.GetProviders(typeof(PaletteModuleManager).FullName).FirstOrDefault();
+					if (provider != null)
+					{
+						providerName = provider.ProviderName;
+					}
+				}
+				else
+				{
+					siteName = cContext.CurrentSite.Name;
+				}
 
-                PaletteItem palette = PaletteModuleManager.GetManager(provider).GetPaletteItems().Where(p => p.Title == this.Palette).FirstOrDefault();
+				List<PaletteItem> list = PaletteModuleManager.GetManager(providerName).GetPaletteItems().ToList();
+
+				PaletteItem palette = PaletteModuleManager.GetManager(providerName).GetPaletteItems().FirstOrDefault(p => p.Title == this.Palette);
 
 				if (palette != null)
 				{
@@ -98,19 +100,19 @@ namespace PaletteModule.Web.Controls
 								string sourceNameNoExtension = sourceFile.Name.Substring(0, sourceFile.Name.Length - 4);
 								string sourceModSuffix = String.Format("{0:ssff}", sourceFileInfo.LastWriteTime);
 								string modSuffix = String.Format("{0:ssff}", palette.LastModified);
-								string themedFileName = string.Format("{0}{1}_{2}{3}-{4}.css", sourceNameNoExtension, sourceModSuffix, title, modSuffix, siteName);
-
-								string generatedFile = Path.Combine(generatedPath, themedFileName);
+								string themedFileName = Regex.Replace(string.Format("{0}{1}_{2}{3}-{4}", sourceNameNoExtension, sourceModSuffix, title, modSuffix, siteName).ToLower(), @"[^\w\-\!\$\'\(\)\=\@\d_]+", "-");
+								
+								string generatedFile = Path.Combine(generatedPath, themedFileName + ".css");
 
 								if (!File.Exists(generatedFile) || File.GetLastWriteTime(sourceFilePath) > File.GetLastWriteTime(generatedFile))
 								{
-                                    ThemeEngine.DeleteGeneratedCSS(generatedPath, sourceNameNoExtension, title, siteName);
+									ThemeEngine.DeleteGeneratedCSS(generatedPath, sourceNameNoExtension, title, siteName);
 									ThemeEngine.GenerateThemedCSS(themePath, sourceFile.Name, palette);
 								}
 
 								if (File.Exists(generatedFile))
 								{
-									AddCSSLink(relativeThemePath, themedFileName);
+									AddCSSLink(relativeThemePath, themedFileName + ".css");
 								}
 							}
 						}
@@ -122,7 +124,7 @@ namespace PaletteModule.Web.Controls
 
 		private void AddCSSLink(string relativeThemePath, string themedFileName)
 		{
-			HtmlHead head = (HtmlHead)Page.Header;
+			HtmlHead head = Page.Header;
 			HtmlLink link = new HtmlLink();
 
 			link.Attributes.Add("href", relativeThemePath.Replace("~/App_Data", "") + "/CSS/Generated/" + themedFileName);
